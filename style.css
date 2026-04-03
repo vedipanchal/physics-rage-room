@@ -1,0 +1,292 @@
+:root {
+  --bg: #0b1020;
+  --panel: #151c33;
+  --panel-border: #263154;
+  --text: #ecf0ff;
+  --muted: #b2bddf;
+  --accent: #49a3ff;
+  --safe: #0f6f49;
+  --safe-border: #37c087;
+  --warn: #7d5c10;
+  --warn-border: #ffd452;
+  --danger: #7e1f2f;
+  --danger-border: #ff6d88;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: radial-gradient(circle at top, #131b35, var(--bg));
+  color: var(--text);
+  min-height: 100vh;
+}
+
+.app {
+  width: min(980px, 92vw);
+  margin: 0 auto;
+  padding: 1rem 0 1.5rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.app__header,
+.monitor,
+.visual {
+  background: rgba(21, 28, 51, 0.86);
+  border: 1px solid var(--panel-border);
+  border-radius: 16px;
+  padding: 1rem;
+  backdrop-filter: blur(6px);
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+.app__header p,
+.visual__header p {
+  margin-top: 0.4rem;
+  color: var(--muted);
+}
+
+#health-form {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.field span {
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.field input {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid #3a4773;
+  background: #0f1630;
+  color: var(--text);
+  padding: 0.95rem 0.9rem;
+  font-size: 1.1rem;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.field input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(73, 163, 255, 0.25);
+}
+
+.btn {
+  border: 0;
+  border-radius: 12px;
+  padding: 0.95rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #071129;
+  background: linear-gradient(135deg, #6bc2ff, #49a3ff);
+  cursor: pointer;
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.btn:active {
+  transform: translateY(1px) scale(0.996);
+}
+
+.btn:hover {
+  filter: brightness(1.05);
+}
+
+.result {
+  margin-top: 1rem;
+  border: 1px solid;
+  border-radius: 14px;
+  padding: 0.95rem;
+  transition: background-color 0.35s ease, border-color 0.35s ease, transform 0.35s ease;
+}
+
+.result h2 {
+  font-size: 1.08rem;
+}
+
+.result p {
+  margin-top: 0.45rem;
+  color: #e8ebf8;
+}
+
+.result.safe {
+  background: color-mix(in oklab, var(--safe) 65%, black);
+  border-color: var(--safe-border);
+}
+
+.result.warning {
+  background: color-mix(in oklab, var(--warn) 70%, black);
+  border-color: var(--warn-border);
+}
+
+.result.danger {
+  background: color-mix(in oklab, var(--danger) 72%, black);
+  border-color: var(--danger-border);
+}
+
+.canvas-wrap {
+  margin-top: 0.8rem;
+  height: 280px;
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid #2f3b63;
+  background: linear-gradient(160deg, #0b1228, #0a1021);
+  overflow: hidden;
+}
+
+.canvas-wrap canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.smart-calc {
+  grid-column: 1 / -1;
+  background: rgba(15, 22, 40, 0.9);
+  border: 1px solid #2e3b65;
+  border-radius: 16px;
+  padding: 1rem;
+}
+
+.calc-grid {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 0.85rem;
+}
+
+.calc-card {
+  border-radius: 14px;
+  border: 1px solid #324170;
+  background: linear-gradient(170deg, rgba(21, 31, 57, 0.98), rgba(12, 20, 40, 0.95));
+  padding: 0.8rem;
+}
+
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.card-head h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.card-body {
+  margin-top: 0.7rem;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.mini-btn {
+  border: 1px solid #4864a8;
+  background: #101b39;
+  color: #d7e2ff;
+  border-radius: 10px;
+  padding: 0.48rem 0.7rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.preset-row {
+  display: flex;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.compact {
+  margin-top: 0;
+  padding: 0.75rem;
+}
+
+.compact h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.compact p {
+  margin-top: 0.35rem;
+  font-size: 0.93rem;
+}
+
+.formula {
+  border: 1px solid #3a4e84;
+  border-radius: 10px;
+  padding: 0.5rem 0.65rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.formula summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.converter-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+}
+
+.inline-note {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.history-list {
+  display: grid;
+  gap: 0.4rem;
+  max-height: 180px;
+  overflow: auto;
+  padding-right: 0.25rem;
+}
+
+.history-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem;
+  border: 1px solid #334574;
+  border-radius: 10px;
+  padding: 0.45rem 0.55rem;
+  background: rgba(9, 15, 31, 0.65);
+  font-size: 0.85rem;
+}
+
+.history-item time {
+  color: #a8b6e1;
+}
+
+@media (min-width: 860px) {
+  .app {
+    grid-template-columns: 1.05fr 1fr;
+    align-items: start;
+  }
+
+  .app__header {
+    grid-column: 1 / -1;
+  }
+
+  .canvas-wrap {
+    height: 360px;
+  }
+
+  .calc-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

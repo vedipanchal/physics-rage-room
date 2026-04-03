@@ -2,349 +2,180 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Physics Rage Room</title>
-  <style>
-    :root {
-      --ui-bg: rgba(0, 0, 0, 0.55);
-      --ui-accent: #7cf3ff;
-      --ui-warn: #ffce6b;
-      --ui-danger: #ff6b6b;
-    }
-
-    * {
-      box-sizing: border-box;
-    }
-
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      font-family: "Segoe UI", sans-serif;
-      background: #101820;
-      color: #fff;
-    }
-
-    #game {
-      position: relative;
-      width: 100%;
-      height: 100%;
-      touch-action: none;
-    }
-
-    canvas {
-      display: block;
-      width: 100%;
-      height: 100%;
-    }
-
-    #slowmo {
-      position: absolute;
-      top: 16px;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 8px 16px;
-      border-radius: 999px;
-      background: rgba(0, 0, 0, 0.6);
-      color: #7cf3ff;
-      font-weight: 700;
-      letter-spacing: 0.2em;
-      pointer-events: none;
-    }
-
-    #stats {
-      position: absolute;
-      left: 16px;
-      bottom: 16px;
-      padding: 10px 14px;
-      border-radius: 12px;
-      background: rgba(0, 0, 0, 0.6);
-      font-size: 13px;
-      line-height: 1.4;
-      pointer-events: none;
-    }
-
-    @media (max-width: 600px) {
-      canvas {
-        width: 100%;
-        height: 100%;
-      }
-    }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Turbine Health Monitor</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div id="game">
-    <!-- Canvas is injected by Matter.js Render -->    
-    <div id="slowmo" hidden>SLOW MOTION</div>
-    <div id="stats" hidden>
-      <div id="velocity">Velocity: 0 m/s</div>
-      <div id="impact">Impact Force: 0 N</div>
-    </div>
-  </div>
+  <main class="app">
+    <header class="app__header">
+      <h1>Turbine Health Monitor</h1>
+      <p>Enter turbine telemetry to assess current operating condition.</p>
+    </header>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js" integrity="sha512-H2bA8IYBq7vR6Ue6E8O7fM8bU3yL4F+W7G0eI1S2w5Q0dO9tB7v3cNUIjQ0Hk30Z9x21OJBYgUo96G2FKuQ0ig==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script>
-    const {
-      Engine,
-      Render,
-      Runner,
-      World,
-      Bodies,
-      Body,
-      Composite,
-      Events,
-      Mouse,
-      MouseConstraint,
-      Vector
-    } = Matter;
+    <section class="monitor" aria-label="Turbine health controls and status">
+      <form id="health-form" novalidate>
+        <label class="field" for="temperature">
+          <span>Temperature (°C)</span>
+          <input id="temperature" name="temperature" type="number" inputmode="decimal" min="0" placeholder="e.g. 95" required />
+        </label>
 
-    const game = document.getElementById('game');
-    const slowmoEl = document.getElementById('slowmo');
-    const statsEl = document.getElementById('stats');
-    const velocityEl = document.getElementById('velocity');
-    const impactEl = document.getElementById('impact');
-    const engine = Engine.create();
-    const world = engine.world;
-    engine.gravity.y = 1.1;
+        <label class="field" for="vibration">
+          <span>Vibration (mm/s)</span>
+          <input id="vibration" name="vibration" type="number" inputmode="decimal" min="0" step="0.1" placeholder="e.g. 5.2" required />
+        </label>
 
-    const render = Render.create({
-      element: game,
-      engine,
-      options: {
-        width: game.clientWidth,
-        height: game.clientHeight,
-        wireframes: false,
-        background: '#1f2937',
-        pixelRatio: window.devicePixelRatio
-      }
-    });
+        <label class="field" for="rpm">
+          <span>RPM</span>
+          <input id="rpm" name="rpm" type="number" inputmode="numeric" min="0" placeholder="e.g. 1800" required />
+        </label>
 
-    Render.run(render);
-    const runner = Runner.create();
-    Runner.run(runner, engine);
+        <button type="submit" class="btn">Analyze Condition</button>
+      </form>
 
-    let selectedBody = null;
-    let dragStart = null;
-    let lastImpactForce = 0;
-    let lastVelocity = 0;
-    let slowmoTimeout = null;
+      <section id="result" class="result safe" aria-live="polite">
+        <h2 id="status-title">SAFE: Normal Operation</h2>
+        <p id="status-message">System is stable. Continue routine monitoring and scheduled maintenance.</p>
+      </section>
+    </section>
 
-    const materials = {
-      glass: { color: '#7cf3ff', restitution: 0.4, friction: 0.2, density: 0.002, break: 140 },
-      ceramic: { color: '#ffce6b', restitution: 0.3, friction: 0.3, density: 0.003, break: 170 },
-      wood: { color: '#c08b5c', restitution: 0.2, friction: 0.5, density: 0.004, break: 220 }
-    };
+    <section class="visual" aria-label="3D turbine model visualization">
+      <div class="visual__header">
+        <h2>3D Turbine View</h2>
+        <p>Drag to rotate, pinch/scroll to zoom.</p>
+      </div>
+      <div id="turbine-canvas" class="canvas-wrap" role="img" aria-label="Interactive 3D model of a turbine"></div>
+    </section>
 
-    const room = {
-      width: () => game.clientWidth,
-      height: () => game.clientHeight,
-      thickness: 60
-    };
+    <section class="smart-calc" aria-label="Smart engineering calculators">
+      <div class="visual__header">
+        <h2>Smart Calculator</h2>
+        <p>Engineering-focused calculators for performance, maintenance, and conversion workflows.</p>
+      </div>
 
-    function createRoom() {
-      const w = room.width();
-      const h = room.height();
-      const t = room.thickness;
+      <div class="calc-grid">
+        <article class="calc-card">
+          <div class="card-head">
+            <h3>Turbine Performance</h3>
+            <button type="button" class="mini-btn" id="performance-reset">Reset</button>
+          </div>
+          <div class="card-body">
+            <label class="field" for="inlet-temp">
+              <span>Inlet Temperature (°C)</span>
+              <input id="inlet-temp" type="number" inputmode="decimal" min="1" placeholder="e.g. 520" />
+            </label>
+            <label class="field" for="outlet-temp">
+              <span>Outlet Temperature (°C)</span>
+              <input id="outlet-temp" type="number" inputmode="decimal" min="1" placeholder="e.g. 360" />
+            </label>
+            <label class="field" for="pressure-ratio">
+              <span>Pressure Ratio (P_in / P_out)</span>
+              <input id="pressure-ratio" type="number" inputmode="decimal" min="1" step="0.01" placeholder="e.g. 6.5" />
+            </label>
+            <section id="performance-result" class="result safe compact">
+              <h4 id="performance-title">Ready for input</h4>
+              <p id="performance-message">Enter values to estimate turbine stage efficiency and status.</p>
+            </section>
+            <details class="formula">
+              <summary>Formula Details</summary>
+              <p id="performance-details">Uses isentropic temperature-drop ratio corrected with pressure-ratio operating band.</p>
+            </details>
+          </div>
+        </article>
 
-      const walls = [
-        Bodies.rectangle(w / 2, -t / 2, w, t, { isStatic: true, render: { fillStyle: '#111827' } }),
-        Bodies.rectangle(w / 2, h + t / 2, w, t, { isStatic: true, render: { fillStyle: '#111827' } }),
-        Bodies.rectangle(-t / 2, h / 2, t, h, { isStatic: true, render: { fillStyle: '#111827' } }),
-        Bodies.rectangle(w + t / 2, h / 2, t, h, { isStatic: true, render: { fillStyle: '#111827' } })
-      ];
+        <article class="calc-card">
+          <div class="card-head">
+            <h3>Vibration Analysis</h3>
+            <button type="button" class="mini-btn" id="vibration-reset">Reset</button>
+          </div>
+          <div class="card-body">
+            <label class="field" for="vibration-value">
+              <span>Vibration (mm/s)</span>
+              <input id="vibration-value" type="number" inputmode="decimal" min="0" step="0.1" placeholder="e.g. 6.5" />
+            </label>
+            <label class="field" for="vibration-rpm">
+              <span>RPM</span>
+              <input id="vibration-rpm" type="number" inputmode="numeric" min="0" placeholder="e.g. 1800" />
+            </label>
+            <section id="vibration-result" class="result safe compact">
+              <h4 id="vibration-title">Ready for input</h4>
+              <p id="vibration-message">Severity and likely cause will be shown here.</p>
+            </section>
+            <details class="formula">
+              <summary>Reasoning</summary>
+              <p id="vibration-details">Severity follows common machine vibration bands, then cause is inferred from RPM zone and amplitude.</p>
+            </details>
+          </div>
+        </article>
 
-      return walls;
-    }
+        <article class="calc-card">
+          <div class="card-head">
+            <h3>Maintenance Estimator</h3>
+            <button type="button" class="mini-btn" id="maintenance-reset">Reset</button>
+          </div>
+          <div class="card-body">
+            <label class="field" for="run-hours">
+              <span>Running Hours</span>
+              <input id="run-hours" type="number" inputmode="numeric" min="0" placeholder="e.g. 6200" />
+            </label>
+            <label class="field" for="maint-vibration">
+              <span>Vibration (mm/s)</span>
+              <input id="maint-vibration" type="number" inputmode="decimal" min="0" step="0.1" placeholder="e.g. 6.8" />
+            </label>
+            <label class="field" for="maint-temp">
+              <span>Temperature (°C)</span>
+              <input id="maint-temp" type="number" inputmode="decimal" min="0" placeholder="e.g. 92" />
+            </label>
+            <section id="maintenance-result" class="result safe compact">
+              <h4 id="maintenance-title">Ready for input</h4>
+              <p id="maintenance-message">Maintenance urgency will appear here.</p>
+            </section>
+            <details class="formula">
+              <summary>Reasoning</summary>
+              <p id="maintenance-details">Weighted score from runtime age + vibration severity + thermal stress.</p>
+            </details>
+          </div>
+        </article>
 
-    function createObject(type, x, y) {
-      const material = materials[type];
-      const isBottle = type === 'glass';
-      const isPlate = type === 'ceramic';
-      const isBox = type === 'wood';
-      let body;
+        <article class="calc-card">
+          <div class="card-head">
+            <h3>Unit Converter</h3>
+            <button type="button" class="mini-btn" id="converter-reset">Reset</button>
+          </div>
+          <div class="card-body">
+            <div class="converter-grid">
+              <label class="field" for="temp-c"><span>°C</span><input id="temp-c" type="number" inputmode="decimal" /></label>
+              <label class="field" for="temp-f"><span>°F</span><input id="temp-f" type="number" inputmode="decimal" /></label>
+              <label class="field" for="rpm-convert"><span>RPM</span><input id="rpm-convert" type="number" inputmode="decimal" /></label>
+              <label class="field" for="hz-convert"><span>Hz</span><input id="hz-convert" type="number" inputmode="decimal" /></label>
+              <label class="field" for="mms-convert"><span>mm/s</span><input id="mms-convert" type="number" inputmode="decimal" /></label>
+              <label class="field" for="ms-convert"><span>m/s</span><input id="ms-convert" type="number" inputmode="decimal" /></label>
+            </div>
+            <p class="inline-note">Conversions update instantly when you type in any field.</p>
+          </div>
+        </article>
+      </div>
 
-      if (isBottle) {
-        body = Bodies.rectangle(x, y, 24, 60, {
-          chamfer: { radius: 6 },
-          render: { fillStyle: material.color }
-        });
-      } else if (isPlate) {
-        body = Bodies.circle(x, y, 28, {
-          render: { fillStyle: material.color }
-        });
-      } else if (isBox) {
-        body = Bodies.rectangle(x, y, 60, 40, {
-          render: { fillStyle: material.color }
-        });
-      }
+      <article class="calc-card trend-card">
+        <div class="card-head">
+          <h3>Health Trend & Presets</h3>
+          <div class="preset-row">
+            <button type="button" class="mini-btn" data-preset="normal">Normal</button>
+            <button type="button" class="mini-btn" data-preset="warning">Warning</button>
+            <button type="button" class="mini-btn" data-preset="danger">Danger</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <section id="trend-result" class="result safe compact">
+            <h4 id="trend-title">Trend: stable →</h4>
+            <p id="trend-message">Last 5 readings will be saved automatically in your browser.</p>
+          </section>
+          <div id="history-list" class="history-list" aria-live="polite"></div>
+        </div>
+      </article>
+    </section>
+  </main>
 
-      body.label = type;
-      body.restitution = material.restitution;
-      body.friction = material.friction;
-      body.density = material.density;
-      body.breakingThreshold = material.break;
-      body.isBreakable = true;
-      return body;
-    }
-
-    function spawnObjects() {
-      const w = room.width();
-      const h = room.height();
-      const spacing = 90;
-      const startX = w * 0.25;
-      const startY = h * 0.4;
-
-      const objects = [
-        createObject('glass', startX, startY),
-        createObject('glass', startX + spacing, startY - 20),
-        createObject('glass', startX + spacing * 2, startY + 10),
-        createObject('ceramic', startX + spacing * 0.4, startY + 100),
-        createObject('ceramic', startX + spacing * 1.4, startY + 120),
-        createObject('wood', startX + spacing * 2.2, startY + 120),
-        createObject('wood', startX + spacing * 1.6, startY + 200)
-      ];
-
-      World.add(world, objects);
-    }
-
-    function applyThrowForce(body, dragVector) {
-      if (!body) return;
-      const forceScale = 0.0006;
-      const clamped = Vector.mult(dragVector, -1 * forceScale);
-      Body.applyForce(body, body.position, clamped);
-    }
-
-    function calculateKineticEnergy(body) {
-      // Kinetic Energy = 0.5 * mass * velocity^2
-      return 0.5 * body.mass * body.speed * body.speed;
-    }
-
-    function calculateImpactForce(body, deltaMs) {
-      // Approximate impact force = mass * acceleration
-      // We approximate acceleration as (velocity / delta time)
-      const deltaSec = Math.max(deltaMs / 1000, 0.016);
-      return body.mass * (body.speed / deltaSec);
-    }
-
-    function createDebris(body) {
-      const pieces = [];
-      const count = 6 + Math.floor(Math.random() * 4);
-      for (let i = 0; i < count; i += 1) {
-        const size = 8 + Math.random() * 10;
-        const piece = Bodies.rectangle(
-          body.position.x + (Math.random() - 0.5) * 20,
-          body.position.y + (Math.random() - 0.5) * 20,
-          size,
-          size,
-          {
-            render: { fillStyle: '#9ca3af' },
-            restitution: 0.2,
-            friction: 0.6,
-            density: body.density * 0.5
-          }
-        );
-        pieces.push(piece);
-      }
-      return pieces;
-    }
-
-    function resetRoom() {
-      Composite.clear(world, false);
-      World.add(world, createRoom());
-      spawnObjects();
-      lastImpactForce = 0;
-      lastVelocity = 0;
-      statsEl.hidden = true;
-    }
-
-    function triggerSlowMo() {
-      if (slowmoTimeout) {
-        clearTimeout(slowmoTimeout);
-      }
-      engine.timing.timeScale = 0.3;
-      slowmoEl.hidden = false;
-      slowmoTimeout = setTimeout(() => {
-        engine.timing.timeScale = 1;
-        slowmoEl.hidden = true;
-      }, 500);
-    }
-
-    const mouse = Mouse.create(render.canvas);
-    const mouseConstraint = MouseConstraint.create(engine, {
-      mouse,
-      constraint: {
-        stiffness: 0.2,
-        render: { visible: false }
-      }
-    });
-    World.add(world, mouseConstraint);
-    render.mouse = mouse;
-
-    Events.on(mouseConstraint, 'mousedown', (event) => {
-      const mousePos = event.mouse.position;
-      const bodies = Composite.allBodies(world);
-      const hit = bodies.find((body) => Matter.Bounds.contains(body.bounds, mousePos) && Matter.Vertices.contains(body.vertices, mousePos));
-      if (hit && hit.isBreakable) {
-        selectedBody = hit;
-        dragStart = { x: mousePos.x, y: mousePos.y };
-      }
-    });
-
-    Events.on(mouseConstraint, 'mouseup', (event) => {
-      if (!selectedBody || !dragStart) {
-        selectedBody = null;
-        dragStart = null;
-        return;
-      }
-      const dragEnd = event.mouse.position;
-      const dragVector = Vector.sub(dragEnd, dragStart);
-      applyThrowForce(selectedBody, dragVector);
-      selectedBody = null;
-      dragStart = null;
-    });
-
-    Events.on(engine, 'collisionStart', (event) => {
-      const deltaMs = engine.timing.lastDelta || 16;
-      event.pairs.forEach((pair) => {
-        [pair.bodyA, pair.bodyB].forEach((body) => {
-          if (!body.isBreakable || body.isBroken) return;
-          const impactForce = calculateImpactForce(body, deltaMs);
-          lastImpactForce = impactForce;
-
-          if (impactForce > body.breakingThreshold) {
-            body.isBroken = true;
-            lastVelocity = body.speed;
-            const debris = createDebris(body);
-            World.remove(world, body);
-            World.add(world, debris);
-            velocityEl.textContent = `Velocity: ${lastVelocity.toFixed(2)} m/s`;
-            impactEl.textContent = `Impact Force: ${lastImpactForce.toFixed(1)} N`;
-            statsEl.hidden = false;
-            triggerSlowMo();
-          }
-        });
-      });
-    });
-
-    Events.on(engine, 'afterUpdate', () => {
-      // Keep render size in sync with window size
-      const w = game.clientWidth;
-      const h = game.clientHeight;
-      if (render.options.width !== w || render.options.height !== h) {
-        render.options.width = w;
-        render.options.height = h;
-        render.canvas.width = w * window.devicePixelRatio;
-        render.canvas.height = h * window.devicePixelRatio;
-        render.canvas.style.width = `${w}px`;
-        render.canvas.style.height = `${h}px`;
-        Render.setPixelRatio(render, window.devicePixelRatio);
-        resetRoom();
-      }
-    });
-
-    resetRoom();
-  </script>
+  <script type="module" src="script.js"></script>
 </body>
 </html>
