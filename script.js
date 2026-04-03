@@ -230,8 +230,7 @@ document.querySelectorAll('[data-preset]').forEach((button) => {
 const performanceInputs = {
   inlet: document.getElementById('inlet-temp'),
   outlet: document.getElementById('outlet-temp'),
-  pressureRatio: document.getElementById('pressure-ratio'),
-  massFlow: document.getElementById('mass-flow')
+  pressureRatio: document.getElementById('pressure-ratio')
 };
 
 const performanceUI = {
@@ -243,20 +242,18 @@ const performanceUI = {
 
 function calculatePerformance(input) {
   const gamma = 1.33;
-  const cp = 1.148; // kJ/(kg*K), hot gas approximation
 
   const tinK = input.inlet + 273.15;
   const toutK = input.outlet + 273.15;
   const idealTout = tinK * Math.pow(1 / input.pressureRatio, (gamma - 1) / gamma);
 
-  const etaIsentropic = clamp((tinK - toutK) / (tinK - idealTout), 0, 1.05);
-  const thermalDrop = Math.max(0, tinK - toutK);
-  const powerKW = input.massFlow * cp * thermalDrop;
+  const etaIsentropic = clamp((tinK - toutK) / (tinK - idealTout), 0, 1.03);
+  const pressureBandPenalty = clamp(Math.abs(input.pressureRatio - 8) * 0.015, 0, 0.12);
+  const correctedEfficiency = clamp((etaIsentropic - pressureBandPenalty) * 100, 0, 100);
 
   return {
-    efficiencyPct: etaIsentropic * 100,
-    powerKW,
-    details: `η_is ≈ (T_in - T_out)/(T_in - T_out,ideal) = (${tinK.toFixed(1)} - ${toutK.toFixed(1)})/(${tinK.toFixed(1)} - ${idealTout.toFixed(1)})`
+    efficiencyPct: correctedEfficiency,
+    details: `η ≈ [(T_in - T_out)/(T_in - T_out,ideal)] - pressure-band correction = ${correctedEfficiency.toFixed(1)}%`
   };
 }
 
@@ -264,8 +261,7 @@ function renderPerformance() {
   const values = {
     inlet: parseField(performanceInputs.inlet),
     outlet: parseField(performanceInputs.outlet),
-    pressureRatio: parseField(performanceInputs.pressureRatio),
-    massFlow: parseField(performanceInputs.massFlow)
+    pressureRatio: parseField(performanceInputs.pressureRatio)
   };
 
   if (Object.values(values).some(isInvalidNumber)) {
@@ -275,19 +271,19 @@ function renderPerformance() {
       performanceUI.message,
       'warning',
       'Waiting for complete inputs',
-      'Provide inlet/outlet temperatures, pressure ratio, and mass flow.'
+      'Provide inlet/outlet temperatures and pressure ratio.'
     );
     return;
   }
 
-  if (values.outlet >= values.inlet || values.pressureRatio <= 1 || values.massFlow <= 0) {
+  if (values.outlet >= values.inlet || values.pressureRatio <= 1) {
     applyResult(
       performanceUI.box,
       performanceUI.title,
       performanceUI.message,
       'danger',
       'Input consistency issue',
-      'Expected: inlet > outlet, pressure ratio > 1, and positive mass flow.'
+      'Expected: inlet > outlet and pressure ratio > 1.'
     );
     return;
   }
@@ -307,10 +303,54 @@ function renderPerformance() {
     performanceUI.title,
     performanceUI.message,
     health,
-    `Efficiency ${result.efficiencyPct.toFixed(1)}% | Power ${result.powerKW.toFixed(0)} kW`,
+    `Efficiency Estimate: ${result.efficiencyPct.toFixed(1)}%`,
     guidance
   );
-  performanceUI.details.textContent = `${result.details} | P ≈ m·cp·ΔT = ${result.powerKW.toFixed(1)} kW`;
+  performanceUI.details.textContent = result.details;
+}
+
+const vibrationInputs = {
+  vibration: document.getElementById('vibration-value'),
+  rpm: document.getElementById('vibration-rpm')
+};
+
+const vibrationUI = {
+  box: document.getElementById('vibration-result'),
+  title: document.getElementById('vibration-title'),
+  message: document.getElementById('vibration-message'),
+  details: document.getElementById('vibration-details')
+};
+
+function inferVibrationCause(vibration, rpm) {
+  if (vibration >= 7.1) return 'Bearing wear or looseness likely';
+  if (rpm < 1200 && vibration > 4.5) return 'Possible misalignment at low-speed train';
+  if (rpm >= 1200 && vibration >= 4.5) return 'Rotor imbalance likely';
+  return 'No dominant fault signature from current inputs';
+}
+
+function renderVibrationAnalysis() {
+  const values = {
+    vibration: parseField(vibrationInputs.vibration),
+    rpm: parseField(vibrationInputs.rpm)
+  };
+
+  if (Object.values(values).some(isInvalidNumber)) {
+    applyResult(
+      vibrationUI.box,
+      vibrationUI.title,
+      vibrationUI.message,
+      'warning',
+      'Waiting for complete inputs',
+      'Enter vibration and RPM for a severity and cause estimate.'
+    );
+    return;
+  }
+
+  const level = values.vibration >= 7.1 ? 'danger' : values.vibration >= 4.5 ? 'warning' : 'safe';
+  const severity = level === 'danger' ? 'Severity: High' : level === 'warning' ? 'Severity: Medium' : 'Severity: Low';
+  const cause = inferVibrationCause(values.vibration, values.rpm);
+  applyResult(vibrationUI.box, vibrationUI.title, vibrationUI.message, level, severity, `Likely cause: ${cause}`);
+  vibrationUI.details.textContent = `Band check: <4.5 low, 4.5-7.0 medium, ≥7.1 high mm/s | RPM influence=${values.rpm.toFixed(0)}`;
 }
 
 const maintenanceInputs = {
@@ -335,7 +375,7 @@ function evaluateMaintenance(values) {
   if (total >= 78) {
     return {
       level: 'danger',
-      urgency: 'Urgency: Immediate',
+      urgency: 'Maintenance Urgency: High',
       action: 'Schedule shutdown inspection now. Prioritize bearings, alignment, and lubrication circuit.',
       formula: `Score=${total.toFixed(1)} (H:${hourScore.toFixed(1)} V:${vibrationScore.toFixed(1)} T:${temperatureScore.toFixed(1)})`
     };
@@ -344,7 +384,7 @@ function evaluateMaintenance(values) {
   if (total >= 52) {
     return {
       level: 'warning',
-      urgency: 'Urgency: Planned Soon',
+      urgency: 'Maintenance Urgency: Medium',
       action: 'Plan maintenance in next operating window and trend vibration daily.',
       formula: `Score=${total.toFixed(1)} (H:${hourScore.toFixed(1)} V:${vibrationScore.toFixed(1)} T:${temperatureScore.toFixed(1)})`
     };
@@ -352,7 +392,7 @@ function evaluateMaintenance(values) {
 
   return {
     level: 'safe',
-    urgency: 'Urgency: Routine',
+    urgency: 'Maintenance Urgency: Low',
     action: 'Continue normal operation with scheduled maintenance interval.',
     formula: `Score=${total.toFixed(1)} (H:${hourScore.toFixed(1)} V:${vibrationScore.toFixed(1)} T:${temperatureScore.toFixed(1)})`
   };
@@ -421,9 +461,11 @@ function resetCalculatorCard(inputSet, callback) {
 }
 
 Object.values(performanceInputs).forEach((input) => input.addEventListener('input', renderPerformance));
+Object.values(vibrationInputs).forEach((input) => input.addEventListener('input', renderVibrationAnalysis));
 Object.values(maintenanceInputs).forEach((input) => input.addEventListener('input', renderMaintenance));
 
 document.getElementById('performance-reset').addEventListener('click', () => resetCalculatorCard(performanceInputs, renderPerformance));
+document.getElementById('vibration-reset').addEventListener('click', () => resetCalculatorCard(vibrationInputs, renderVibrationAnalysis));
 document.getElementById('maintenance-reset').addEventListener('click', () => resetCalculatorCard(maintenanceInputs, renderMaintenance));
 document.getElementById('converter-reset').addEventListener('click', () => {
   Object.values(converterInputs).forEach((input) => {
@@ -433,7 +475,8 @@ document.getElementById('converter-reset').addEventListener('click', () => {
 
 // Simple self-checks (run in DevTools):
 // console.assert(evaluateCondition(101, 8) === 'danger', 'danger rule failed');
-// console.assert(calculatePerformance({ inlet: 520, outlet: 360, pressureRatio: 6.5, massFlow: 42 }).powerKW > 0, 'power calc failed');
+// console.assert(calculatePerformance({ inlet: 520, outlet: 360, pressureRatio: 6.5 }).efficiencyPct > 0, 'efficiency calc failed');
+// console.assert(inferVibrationCause(7.4, 1800).includes('Bearing'), 'vibration cause inference failed');
 
 // -------------------------------
 // 3D turbine model (existing feature)
@@ -583,5 +626,6 @@ window.addEventListener('beforeunload', () => {
 
 init3D();
 renderPerformance();
+renderVibrationAnalysis();
 renderMaintenance();
 updateTrendPanel();

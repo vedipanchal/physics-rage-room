@@ -72,24 +72,45 @@
               <span>Pressure Ratio (P_in / P_out)</span>
               <input id="pressure-ratio" type="number" inputmode="decimal" min="1" step="0.01" placeholder="e.g. 6.5" />
             </label>
-            <label class="field" for="mass-flow">
-              <span>Mass Flow Rate (kg/s)</span>
-              <input id="mass-flow" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="e.g. 42" />
-            </label>
             <section id="performance-result" class="result safe compact">
               <h4 id="performance-title">Ready for input</h4>
-              <p id="performance-message">Enter values to estimate turbine efficiency and shaft power.</p>
+              <p id="performance-message">Enter values to estimate turbine stage efficiency and status.</p>
             </section>
             <details class="formula">
               <summary>Formula Details</summary>
-              <p id="performance-details">Uses an isentropic baseline (γ = 1.33) and cp approximation for hot gas.</p>
+              <p id="performance-details">Uses isentropic temperature-drop ratio corrected with pressure-ratio operating band.</p>
             </details>
           </div>
         </article>
 
         <article class="calc-card">
           <div class="card-head">
-            <h3>Quick Maintenance</h3>
+            <h3>Vibration Analysis</h3>
+            <button type="button" class="mini-btn" id="vibration-reset">Reset</button>
+          </div>
+          <div class="card-body">
+            <label class="field" for="vibration-value">
+              <span>Vibration (mm/s)</span>
+              <input id="vibration-value" type="number" inputmode="decimal" min="0" step="0.1" placeholder="e.g. 6.5" />
+            </label>
+            <label class="field" for="vibration-rpm">
+              <span>RPM</span>
+              <input id="vibration-rpm" type="number" inputmode="numeric" min="0" placeholder="e.g. 1800" />
+            </label>
+            <section id="vibration-result" class="result safe compact">
+              <h4 id="vibration-title">Ready for input</h4>
+              <p id="vibration-message">Severity and likely cause will be shown here.</p>
+            </section>
+            <details class="formula">
+              <summary>Reasoning</summary>
+              <p id="vibration-details">Severity follows common machine vibration bands, then cause is inferred from RPM zone and amplitude.</p>
+            </details>
+          </div>
+        </article>
+
+        <article class="calc-card">
+          <div class="card-head">
+            <h3>Maintenance Estimator</h3>
             <button type="button" class="mini-btn" id="maintenance-reset">Reset</button>
           </div>
           <div class="card-body">
